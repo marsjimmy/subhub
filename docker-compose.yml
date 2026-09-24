@@ -1,7 +1,9 @@
 services:
   subhub:
-    build: .
-    image: subhub:0.2.0
+    # 直接从 Docker Hub 拉取镜像(推荐,NAS 等无构建环境友好)
+    image: marsjimmyliu/subhub:latest
+    # 如需本地构建:把上面 image 行注释掉,并取消下面 build 的注释
+    # build: .
     container_name: subhub
     restart: unless-stopped
     ports:

@@ -1,7 +1,7 @@
 # SubHub — 媒体库字幕搜索与下载工具
 
 > 🎬 一键为你的 Jellyfin / Emby / Plex 媒体库(含 **STRM 虚拟文件**)自动搜索并下载字幕,字幕自动落到媒体同目录,播放器直接识别。
-> 🐳 基于 Docker,两条命令即可跑起来,无需懂代码。
+> 🐳 已发布到 Docker Hub:**`marsjimmyliu/subhub`**,两条命令即可跑起来,无需懂代码、无需构建。
 
 ---
 
@@ -10,15 +10,18 @@
 - [SubHub 是什么?](#subhub-是什么)
 - [功能特性](#功能特性)
 - [支持的 5 个字幕源](#支持的-5-个字幕源)
-- [一、新手快速上手(Docker 部署)](#一新手快速上手docker-部署)
-- [二、打开网页开始使用](#二打开网页开始使用)
-- [三、字幕源配置详解](#三字幕源配置详解)
-- [四、STRM 虚拟文件支持](#四strm-虚拟文件支持)
-- [五、常用环境变量](#五常用环境变量)
-- [六、对外 API(进阶)](#六对外-api进阶)
-- [七、常见问题(FAQ)](#七常见问题faq)
-- [八、本地开发与测试](#八本地开发与测试)
-- [九、项目结构](#九项目结构)
+- [一、快速上手:直接拉取 Docker 镜像](#一快速上手直接拉取-docker-镜像)
+- [二、详细安装:docker compose(推荐)](#二详细安装docker-compose推荐)
+- [三、NAS 安装指南(群晖 / 威联通 / 通用)](#三nas-安装指南群晖--威联通--通用)
+- [四、打开网页开始使用](#四打开网页开始使用)
+- [五、字幕源配置详解](#五字幕源配置详解)
+- [六、STRM 虚拟文件支持](#六strm-虚拟文件支持)
+- [七、安装后的调试与设置](#七安装后的调试与设置)
+- [八、常用环境变量](#八常用环境变量)
+- [九、对外 API(进阶)](#九对外-api进阶)
+- [十、常见问题(FAQ)](#十常见问题faq)
+- [十一、本地开发与测试](#十一本地开发与测试)
+- [十二、项目结构](#十二项目结构)
 - [版本记录](#版本记录)
 
 ---
@@ -46,7 +49,7 @@ SubHub 是一个**自托管的字幕聚合下载工具**。它做三件事:
 | 🗄️ **SQLite 持久化** | API 令牌、源开关、凭据、正则、缓存、历史记录全部本地存储 |
 | 📱 **响应式界面** | 原生单页应用:媒体 / 字幕 / 设置三个页面 |
 | 🔐 **API 鉴权** | 对外 API 使用 Bearer Token,首次启动自动生成 |
-| 🐳 **Docker 一键部署** | 自带 Dockerfile 与 Compose,非 root 用户运行 |
+| 🐳 **双架构镜像** | 已发布 `linux/amd64` + `linux/arm64`,x86 与 ARM NAS 都能跑 |
 
 ---
 
@@ -64,11 +67,30 @@ SubHub 是一个**自托管的字幕聚合下载工具**。它做三件事:
 
 ---
 
-## 一、新手快速上手(Docker 部署)
+## 一、快速上手:直接拉取 Docker 镜像
 
-> 全程大约 10 分钟,不需要安装 Python,不需要写代码。
+> 最快的方式:不需要下载源码、不需要构建,直接拉现成镜像。
 
-### 第 1 步:安装 Docker
+**前提:已安装 Docker**(未安装请看下文"第 0 步")。
+
+```bash
+# 1. 建目录
+mkdir -p subhub/media subhub/data && cd subhub
+
+# 2. 拉镜像并启动
+docker run -d --name subhub --restart unless-stopped \
+  -p 8000:8000 \
+  -v "$PWD/media:/media:rw" \
+  -v "$PWD/data:/data" \
+  marsjimmyliu/subhub:latest
+
+# 3. 打开网页
+#   http://localhost:8000
+```
+
+> 想在别的端口访问?把 `-p 8000:8000` 改成 `-p 9000:8000`(左侧是访问端口)。
+
+**第 0 步:安装 Docker**
 
 - **Windows**:安装 [Docker Desktop](https://www.docker.com/products/docker-desktop/)(安装后启动,若提示 WSL2 按提示启用并重启)。
 - **macOS**:同样安装 Docker Desktop。
@@ -78,43 +100,165 @@ SubHub 是一个**自托管的字幕聚合下载工具**。它做三件事:
   sudo apt install -y docker.io docker-compose-plugin
   sudo systemctl enable --now docker
   ```
-- 验证安装:`docker --version` 能输出版本号即可。
+- 验证:`docker --version` 能输出版本号即可。
 
-### 第 2 步:下载项目
+---
+
+## 二、详细安装:docker compose(推荐)
+
+Compose 方式适合想要自定义端口、环境变量、目录映射的场景,后续升级也最方便。
+
+### 第 1 步:下载项目文件
 
 ```bash
-git clone https://github.com/<你的GitHub用户名>/subhub.git
+git clone https://github.com/marsjimmy/subhub.git
 cd subhub
 ```
 
-> 不会用 git?也可以直接点 GitHub 页面上的 **Code → Download ZIP**,解压后进入文件夹。
+> 不会用 git?点击 GitHub 页面 **Code → Download ZIP**,解压后进入文件夹。只需要其中的 `docker-compose.yml`,也可以自己新建一个同名的空文件照抄下面的内容。
 
-### 第 3 步:创建数据目录
+### 第 2 步:创建数据目录
 
 ```bash
 mkdir -p media data
 ```
 
-- `media/`:放你的媒体文件或 strm 文件(也可以把整个媒体库目录映射进来,见下文);
+- `media/`:放你的媒体文件或 strm 文件(或把整个媒体库目录映射进来,见下文);
 - `data/`:存放数据库、API 令牌、无媒体场景下下载的字幕。
 
-### 第 4 步:启动
+### 第 3 步:启动(直接拉镜像,无需构建)
 
 ```bash
-docker compose up -d --build
+docker compose up -d
 ```
 
-第一次构建需要下载依赖,大约 5~15 分钟(取决于网络)。看到 `Started` 或 `done` 即成功。
+> 项目自带的 `docker-compose.yml` 已默认使用 Docker Hub 镜像 `marsjimmyliu/subhub:latest`。首次拉取约 256MB,取决于网络 1~5 分钟。看到 `Started` 或 `done` 即成功。
 
-### 第 5 步:打开网页
+### 第 4 步:验证
 
-浏览器访问 <http://localhost:8000>,看到"媒体"页面即部署成功。
+```bash
+docker compose ps          # 状态应为 Up
+docker logs subhub         # 日志无报错
+```
 
-> 如果 SubHub 与媒体库不在同一台机器,请把 `docker-compose.yml` 里的 `/media` 映射改成你实际的媒体路径(见"目录映射")。
+然后浏览器访问 <http://localhost:8000>。
+
+### 目录映射说明(重要)
+
+| 宿主机目录 | 容器目录 | 权限 | 用途 |
+| --- | --- | --- | --- |
+| `./media` | `/media` | 读写 | 视频 / strm 文件与本地封面(**strm 场景必须 rw**,需写入字幕) |
+| `./data` | `/data` | 读写 | SQLite 数据库、API 令牌、下载的字幕 |
+
+**把媒体库目录换成你自己的**:编辑 `docker-compose.yml`,把 `./media:/media:rw` 改成你的真实路径,例如:
+
+```yaml
+volumes:
+  - /volume1/video:/media:rw      # 群晖共享文件夹示例
+  - ./data:/data
+```
+
+> 只读场景(如网盘挂载只读):可改成 `:ro`,SubHub 会自动把字幕存到 `data/downloads/` 并在界面提示。
+
+### 修改端口
+
+编辑 `docker-compose.yml`:
+
+```yaml
+ports:
+  - "9000:8000"     # 左侧 9000 是访问端口,右侧 8000 是容器端口(勿改)
+```
+
+改完执行 `docker compose up -d` 生效。
+
+### 固定 API 令牌(可选)
+
+```yaml
+environment:
+  API_TOKEN: "换成你的高强度随机字符串"
+```
 
 ---
 
-## 二、打开网页开始使用
+## 三、NAS 安装指南(群晖 / 威联通 / 通用)
+
+NAS 上安装分两种:图形界面(适合新手)和 SSH 命令行(通用)。本镜像同时支持 x86 与 ARM 架构,常见 NAS 均可运行。
+
+### 方式 A:群晖 Synology(DSM 7.2+,图形界面)
+
+1. 打开 **套件中心**,安装 **Container Manager**(旧版叫 Docker);
+2. 打开 Container Manager → **注册表** → 搜索框输入 `marsjimmyliu/subhub` → 选中镜像 → **下载**(选择 `latest` 标签);
+3. 下载完成后进入 **映像** → 选中 `marsjimmyliu/subhub` → **运行**:
+   - **常规设置**:容器名随意(如 `subhub`),勾选"启用自动重新启动";
+   - **高级设置 → 端口设置**:本地端口 `8000` → 容器端口 `8000`(本地端口可改,如 NAS 已占用就换 `9000`);
+   - **高级设置 → 卷**:添加文件夹
+     - 共享文件夹(如 `docker/subhub/media`)→ 装载路径 `/media`,勾选读写;
+     - 共享文件夹(如 `docker/subhub/data`)→ 装载路径 `/data`,勾选读写;
+   - **高级设置 → 环境**:可添加 `API_TOKEN`(可选);
+4. 点击 **应用/保存** 启动容器;
+5. 浏览器访问 `http://<NAS的IP>:8000`。
+
+> 找不到注册表?先确认 NAS 能访问外网,或在"注册表"右上角设置里换镜像源。
+
+### 方式 B:威联通 QNAP(Container Station)
+
+1. 打开 **App Center**,安装 **Container Station**;
+2. Container Station → **映像** → **提取**(Pull)→ 输入 `marsjimmyliu/subhub:latest` → 提取;
+3. 在映像列表选中它 → **创建容器**:
+   - **端口**:主机 `8000` → 容器 `8000`;
+   - **卷**:添加两个映射:`/media`(对应你的影片共享文件夹)与 `/data`(对应数据文件夹),均读写;
+   - **重启策略**:选择"始终重启";
+4. 启动后访问 `http://<NAS的IP>:8000`。
+
+### 方式 C:通用 NAS(绿联 / 极空间 / 铁威马 / 飞牛fnOS / 其他)——SSH + docker compose
+
+绝大多数 NAS 都支持 SSH,步骤完全一致:
+
+1. **开启 SSH**:NAS 控制面板 → 终端机/SSH → 启用(默认端口 22,设置强密码);
+2. 用电脑的终端 SSH 登录:`ssh 用户名@NAS的IP`;
+3. 依次执行:
+
+```bash
+mkdir -p /volume1/docker/subhub/media /volume1/docker/subhub/data
+cd /volume1/docker/subhub
+# 创建 compose 文件(内容见下方,路径按你的 NAS 改)
+vim docker-compose.yml
+docker compose up -d
+```
+
+`docker-compose.yml` 内容(NAS 版,改好路径):
+
+```yaml
+services:
+  subhub:
+    image: marsjimmyliu/subhub:latest
+    container_name: subhub
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - /volume1/video:/media:rw       # 改成你的影片共享文件夹
+      - /volume1/docker/subhub/data:/data
+    shm_size: "1gb"
+```
+
+> 不会 vim?用 `nano docker-compose.yml`;或直接在电脑上写好文件,用 WinSCP / 群晖 File Station 上传到 NAS。
+
+4. 访问 `http://<NAS的IP>:8000`。
+
+### NAS 安装后必查的 3 件事
+
+1. **目录权限**:容器内以 `uid=1000` 的非 root 用户运行。若容器内写不了 `media/`(报权限错误),在 NAS 上执行:
+   ```bash
+   sudo chown -R 1000:1000 /volume1/docker/subhub/data
+   sudo chmod -R 777 /volume1/video        # 或只对字幕写入目录授权
+   ```
+2. **防火墙/端口**:NAS 防火墙若开启,放行 `8000` 端口;否则局域网外设备访问不到。
+3. **局域网访问**:用 NAS 的 IP 而不是 `localhost`,如 `http://192.168.1.10:8000`。
+
+---
+
+## 四、打开网页开始使用
 
 界面分三个页面:
 
@@ -134,7 +278,7 @@ docker compose up -d --build
 
 ---
 
-## 三、字幕源配置详解
+## 五、字幕源配置详解
 
 ### 1. 字幕库(zimuku) — 免配置
 
@@ -156,7 +300,8 @@ docker compose up -d --build
 该源通过抓取 opensubtitles.org 网页实现,但网站有反爬校验,需要先自建一个 [FlareSolverr](https://github.com/FlareSolverr/FlareSolverr) 服务:
 
 ```bash
-docker run -d --name flaresolverr -p 8191:8191 ghcr.io/flaresolverr/flaresolverr:latest
+docker run -d --name flaresolverr --restart unless-stopped \
+  -p 8191:8191 ghcr.io/flaresolverr/flaresolverr:latest
 ```
 
 然后:
@@ -176,7 +321,7 @@ docker run -d --name flaresolverr -p 8191:8191 ghcr.io/flaresolverr/flaresolverr
 
 ---
 
-## 四、STRM 虚拟文件支持
+## 六、STRM 虚拟文件支持
 
 STRM 是"指针文件":里面只有一行目标地址(网盘/云盘/远程媒体库的链接),配合 rclone 等挂载方案可让 Jellyfin 直接播放云端视频。SubHub 对 strm 做了专门支持:
 
@@ -192,7 +337,54 @@ STRM 是"指针文件":里面只有一行目标地址(网盘/云盘/远程媒体
 
 ---
 
-## 五、常用环境变量
+## 七、安装后的调试与设置
+
+装好后按下面的清单走一遍,10 分钟确认一切正常。
+
+### 1. 确认服务正常
+
+```bash
+docker compose ps        # 状态为 Up
+docker logs subhub       # 无 ERROR 报错
+curl http://localhost:8000/api/health   # 返回 {"status":"ok"}
+```
+
+### 2. 第一次打开界面
+
+浏览器访问 `http://localhost:8000`(NAS 用 `http://NAS的IP:8000`)。看到"媒体"页面即正常。
+- 页面不需要登录;只有调用 API 才需要 Bearer Token(存在 `data/api-token`,首次启动自动生成)。
+
+### 3. 设置字幕源(设置页)
+
+1. 确认 **字幕库(zimuku)**、**SubHD** 已勾选(默认开启);
+2. 想用 assrt → 填 Token;想用 OpenSubtitles 网页版 → 填 FlareSolverr 地址;想用官方 API → 填三件套;
+3. 至少保留一个开启的源,否则搜索会提示"请先在设置中开启至少一个字幕源"。
+
+### 4. 测试一次完整流程
+
+1. **媒体页**:如果 `media/` 里有视频或 strm,应看到卡片;点击卡片 **搜索字幕**;
+2. **字幕页**:也可以手动输入片名搜索,如 `肖申克的救赎`;
+3. 结果列表点 **下载**,按钮变为"已保存";
+4. **验证落位**:
+   ```bash
+   ls media/                 # 应出现 Movie.srt / Movie.ass 等文件
+   head -5 media/Movie.srt   # 能看到字幕时间轴内容
+   ```
+
+### 5. 常见问题排查速查
+
+| 现象 | 排查 |
+| --- | --- |
+| 网页打不开 | `docker compose ps` 是否 Up;防火墙是否放行端口;NAS 用 IP 访问 |
+| 搜索无结果 | 设置页至少开启一个源;网站反爬波动,稍后重试 |
+| zimuku 报"验证码放行失败" | 网站验证码升级,稍后重试;可先关闭该源 |
+| FlareSolverr 报错 | 确认容器运行、地址正确(局域网填 IP 不填 localhost) |
+| 字幕写不进 media | 目录只读或权限不足:检查挂载为 `:rw`,NAS 上 `chown -R 1000:1000` |
+| 日志在哪看 | `docker compose logs -f` 实时查看 |
+
+---
+
+## 八、常用环境变量
 
 | 变量 | 默认值 | 说明 |
 | --- | --- | --- |
@@ -211,7 +403,7 @@ STRM 是"指针文件":里面只有一行目标地址(网盘/云盘/远程媒体
 
 ---
 
-## 六、对外 API(进阶)
+## 九、对外 API(进阶)
 
 除网页界面外,所有功能都有 HTTP API(除 `/api/health` 外都需要 `Authorization: Bearer <令牌>`):
 
@@ -241,10 +433,10 @@ curl -X POST http://localhost:8000/api/download \
 
 ---
 
-## 七、常见问题(FAQ)
+## 十、常见问题(FAQ)
 
 **Q: 网页打不开?**
-检查容器是否运行:`docker compose ps`。若状态不是 `Up`,查看日志:`docker compose logs -f`。
+检查容器是否运行:`docker compose ps`。若状态不是 `Up`,查看日志:`docker compose logs -f`。NAS 请用 `http://NAS的IP:8000` 访问,并确认防火墙放行端口。
 
 **Q: 搜索没结果?**
 先在设置页确认至少开启一个字幕源;部分网站对无人值守访问敏感,可稍后重试。
@@ -267,9 +459,15 @@ strm 同目录、同主名(`Movie.strm` → `Movie.srt`)。若媒体目录只读
 **Q: 想改端口?**
 编辑 `docker-compose.yml` 的 `ports: "8000:8000"` 左侧改为你想要的端口,然后 `docker compose up -d`。
 
+**Q: NAS 上容器写不进目录?**
+容器以 uid 1000 运行,执行 `sudo chown -R 1000:1000 <目录>` 或 `sudo chmod -R 777 <目录>`。
+
+**Q: 镜像拉取很慢/失败?**
+国内网络可配置 Docker 镜像加速器(各 NAS 与 Docker Desktop 设置中都有"镜像加速"入口,如填入 `https://docker.m.daocloud.io` 等)。
+
 ---
 
-## 八、本地开发与测试
+## 十一、本地开发与测试
 
 ```bash
 # 安装依赖(需要 Python 3.10+)
@@ -287,7 +485,7 @@ python3 -m unittest discover -s tests -v
 
 ---
 
-## 九、项目结构
+## 十二、项目结构
 
 ```text
 subhub/
@@ -312,8 +510,9 @@ subhub/
 │   ├── test_subhub.py          # STRM / 落位 / 保存 / 各 API 源测试
 │   ├── test_new_providers.py   # zimuku / 7z / OpenSubtitles 网页版测试
 │   └── fixtures/               # 真实页面样本
+├── .github/workflows/          # 自动构建并推送 Docker Hub 的 CI
 ├── Dockerfile                  # 镜像构建(非 root 运行)
-├── docker-compose.yml          # 一键部署编排
+├── docker-compose.yml          # 一键部署编排(默认拉取 Docker Hub 镜像)
 ├── requirements.txt
 └── README.md
 ```
@@ -324,7 +523,7 @@ subhub/
 
 | 版本 | 日期 | 更新内容 |
 | --- | --- | --- |
-| v0.2.0 | 2026-09-24 | 字幕源对齐:新增 zimuku(自动过验证码)与 OpenSubtitles 网页版(FlareSolverr),共 5 源;7z 解压支持;不包含成人内容源 |
+| v0.2.0 | 2026-09-24 | 字幕源对齐 5 源;STRM 支持;发布 Docker Hub(`marsjimmyliu/subhub`);自动构建 CI;详细安装教程(NAS / Compose / 调试) |
 | v0.1.0 | 2026-09-24 | 首个版本:媒体库扫描 + STRM 支持 + SubHD/assrt/OpenSubtitles 三源 + 前端 + Docker |
 
 ---
