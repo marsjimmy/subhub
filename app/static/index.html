@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SubHub 字幕聚合工具</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <span class="brand-mark">S</span>
+        <div class="brand-meta">
+          <strong>SubHub</strong>
+          <small id="brand-version">v0.1.0</small>
+        </div>
+      </div>
+      <nav>
+        <button class="nav-item active" data-view="media">媒体</button>
+        <button class="nav-item" data-view="search">字幕</button>
+        <button class="nav-item" data-view="settings">设置</button>
+      </nav>
+    </aside>
+    <main class="workspace">
+      <header class="topbar">
+        <h1 id="page-title">媒体</h1>
+      </header>
+      <div class="content">
+        <section class="view active" id="view-media">
+          <div class="toolbar">
+            <input id="media-filter" type="search" placeholder="筛选媒体…">
+            <button id="refresh" class="btn">重新扫描</button>
+          </div>
+          <div id="media-list" class="media-grid">
+            <p class="empty">正在扫描媒体库…</p>
+          </div>
+        </section>
+
+        <section class="view" id="view-search">
+          <form id="search-form" class="searchbar">
+            <input id="keyword" required placeholder="输入片名搜索字幕" autocomplete="off">
+            <button class="btn primary" type="submit">搜索字幕</button>
+          </form>
+          <div id="search-meta" class="meta"></div>
+          <div id="results" class="results"><p class="empty">输入片名开始搜索</p></div>
+        </section>
+
+        <section class="view" id="view-settings">
+          <div class="card">
+            <h2>字幕源</h2>
+            <p class="hint">字幕库(zimuku)、SubHD 免配置开箱即用；assrt 填写 Token、OpenSubtitles 网页版填写 FlareSolverr 地址、OpenSubtitles API 填写官方凭据后开启。</p>
+            <div id="provider-list" class="provider-list"></div>
+          </div>
+          <div class="card">
+            <h2>assrt Token</h2>
+            <p class="hint">前往 <a href="https://assrt.net/" target="_blank" rel="noopener">assrt.net</a> 注册后在个人中心获取 Token。</p>
+            <div class="field">
+              <input id="assrt-token" type="password" placeholder="填写 assrt Token" autocomplete="off">
+              <button id="save-assrt" class="btn primary">保存</button>
+            </div>
+            <p id="assrt-message" class="message"></p>
+          </div>
+          <div class="card">
+            <h2>OpenSubtitles 网页版 (FlareSolverr)</h2>
+            <p class="hint">opensubtitles.org 有反爬拦截,需要自建 <a href="https://github.com/FlareSolverr/FlareSolverr" target="_blank" rel="noopener">FlareSolverr</a> 服务,填写其地址后开启。</p>
+            <div class="field">
+              <input id="flaresolverr-url" type="text" placeholder="例如 http://192.168.1.10:8191" autocomplete="off">
+              <button id="save-flaresolverr" class="btn primary">保存</button>
+            </div>
+            <p id="flaresolverr-message" class="message"></p>
+          </div>
+          <div class="card">
+            <h2>OpenSubtitles API</h2>
+            <p class="hint">前往 <a href="https://www.opensubtitles.com/" target="_blank" rel="noopener">opensubtitles.com</a> 注册获取 API Key。</p>
+            <div class="field">
+              <input id="os-api-key" type="password" placeholder="API Key" autocomplete="off">
+              <input id="os-username" type="text" placeholder="用户名" autocomplete="off">
+              <input id="os-password" type="password" placeholder="密码" autocomplete="off">
+              <button id="save-os" class="btn primary">保存</button>
+            </div>
+            <p id="os-message" class="message"></p>
+          </div>
+          <div class="card">
+            <h2>媒体名称识别正则</h2>
+            <div id="pattern-list" class="pattern-list"></div>
+            <div class="field">
+              <input id="pattern-test-filename" placeholder="测试文件名,如 十二生肖 (2012) - 1080p.mkv">
+              <button id="test-patterns" class="btn">测试</button>
+              <button id="save-patterns" class="btn primary">保存</button>
+            </div>
+            <p id="pattern-test-result" class="message"></p>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+  <script src="/static/app.js" defer></script>
+</body>
+</html>

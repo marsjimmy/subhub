@@ -1,0 +1,19 @@
+services:
+  subhub:
+    build: .
+    image: subhub:0.2.0
+    container_name: subhub
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      # API_TOKEN: "请替换为高强度随机令牌"   # 不设置时自动生成并持久化到数据目录
+      # SUBHD_BASE: "https://subhd.tv"        # SubHD 备用域名可在此更换
+      SEARCH_CACHE_TTL: "${SEARCH_CACHE_TTL:-600}"
+    volumes:
+      # strm 场景需要把字幕写入 strm 文件同目录,媒体目录以 rw 挂载;
+      # 纯视频场景可改回 "./media:/media:ro"
+      - ./media:/media:rw
+      # 数据目录:SQLite 数据库、API 令牌、下载的字幕
+      - ./data:/data
+    shm_size: "1gb"
